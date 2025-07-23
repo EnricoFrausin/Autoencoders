@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-def train(model, train_loader, val_loader, optimizer, writer, epochs, save_tensorboard_parameters=False):
+def train(model, epochs, train_loader, val_loader, optimizer, writer, scheduler= None, save_tensorboard_parameters=False):
 
     global_batch_idx = 0
 
@@ -17,10 +17,12 @@ def train(model, train_loader, val_loader, optimizer, writer, epochs, save_tenso
             loss = nn.MSELoss()(output, data)
             loss.backward()
             optimizer.step()
-
             train_loss += loss.item()
             global_batch_idx += 1
 
+        if scheduler is not None:
+                scheduler.step()
+                
         writer.add_scalar('Loss/train', train_loss / len(train_loader.dataset), global_step=epoch)
 
 
