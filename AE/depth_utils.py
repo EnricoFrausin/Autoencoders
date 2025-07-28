@@ -301,9 +301,11 @@ def get_KL_with_HFM_with_optimal_g(model, data_loader, return_g=False):   # IMPO
     return kl_divergence, optimal_g if return_g else kl_divergence
 
 
+#–––––––––––––––––––––––––––––––––––––––––PLOTS–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
 
 
-def plot_KLs_vs_hidden_layers(KLs, gs):                                  # IMPORTED IN DEPTH_ANALYSIS
+
+def plot_KLs_vs_hidden_layers(KLs, gs, dataset_name):                                  # IMPORTED IN DEPTH_ANALYSIS
     """
     Plots KLs vs number of hidden layers, with gs indicated by a colormap.
     Assumes KLs and gs are lists of length 4 (for 1 to 4 hidden layers).
@@ -317,7 +319,24 @@ def plot_KLs_vs_hidden_layers(KLs, gs):                                  # IMPOR
     plt.colorbar(scatter, label="g")
     plt.xlabel("Number of Hidden Layers")
     plt.ylabel("KL Divergence")
-    plt.title("KL Divergence vs Hidden Layers (colored by g)")
+    plt.title("KL Divergence vs Hidden Layers - "+ f"\n{dataset_name} Dataset")
     plt.xticks(num_layers)
+    plt.grid(True)
+    plt.show()
+
+
+def datasets_dicts_comparison(KLs_dict):                                            # IMPORTED IN DEPTH_ANALYSIS
+    """
+    Plots KL values for each dataset in KLs_dict on the same graph.
+    X-axis: number of hidden layers (1, 2, 3, ...)
+    """
+    plt.figure(figsize=(8, 5))
+    for key, values in KLs_dict.items():
+        x = list(range(1, len(values) + 1))
+        plt.plot(x, values, marker='o', label=key)
+    plt.xlabel("Number of hidden layers")
+    plt.ylabel("KL value")
+    plt.title("KLs vs Number of Hidden Layers")
+    plt.legend()
     plt.grid(True)
     plt.show()

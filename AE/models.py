@@ -13,6 +13,8 @@ class AE_0(nn.Module):
         activation_fn=nn.ReLU,
         output_activation_encoder=None,
         output_activation_decoder=None,
+        BatchNorm=False,
+        LayerNorm=False,
     ):
         super().__init__()
 
@@ -35,6 +37,10 @@ class AE_0(nn.Module):
                 nn.Linear(encoder_neurons_sizes[i], encoder_neurons_sizes[i + 1])
             )
             if i < len(encoder_neurons_sizes) - 2:
+                if BatchNorm:
+                    encoder_layers.append(nn.BatchNorm1d(encoder_neurons_sizes[i + 1]))
+                if LayerNorm:
+                    encoder_layers.append(nn.LayerNorm(encoder_neurons_sizes[i + 1]))
                 encoder_layers.append(self.activation_fn())
             elif output_activation_encoder is not None:
                 encoder_layers.append(output_activation_encoder())
@@ -50,6 +56,10 @@ class AE_0(nn.Module):
                 nn.Linear(decoder_neurons_sizes[i], decoder_neurons_sizes[i + 1])
             )
             if i < len(decoder_neurons_sizes) - 2:
+                if BatchNorm:
+                    decoder_layers.append(nn.BatchNorm1d(decoder_neurons_sizes[i + 1]))
+                if LayerNorm:
+                    decoder_layers.append(nn.LayerNorm(decoder_neurons_sizes[i + 1]))
                 decoder_layers.append(self.activation_fn())
             elif output_activation_decoder is not None:
                 decoder_layers.append(output_activation_decoder())

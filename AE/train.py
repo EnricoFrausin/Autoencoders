@@ -66,3 +66,29 @@ def train(
     print(
         f"Training completed. Final training loss: {train_loss / len(train_loader.dataset)}, Validation loss: {val_loss / len(val_loader.dataset)}"
     )
+
+
+
+
+
+def layer_wise_pretrain_load_dict(ex_model, new_model):
+    for i in range(len(ex_model.encoder)):
+        if isinstance(ex_model.encoder[i], nn.Linear):
+            # Get the corresponding layer in the new model
+            for j in range(len(new_model.encoder)):
+                if isinstance(new_model.encoder[j], nn.Linear):
+                    if ex_model.encoder[i].weight.shape == new_model.encoder[j].weight.shape:
+                        new_model.encoder[j].weight.data = ex_model.encoder[i].weight.data.clone()
+                        new_model.encoder[j].bias.data = ex_model.encoder[i].bias.data.clone()
+                        break
+
+    # For the decoder (in reverse order since decoder is reversed)
+    for i in range(len(ex_model.decoder)):
+        if isinstance(ex_model.decoder[i], nn.Linear):
+            # Get the corresponding layer in the new model
+            for j in range(len(new_model.decoder)):
+                if isinstance(new_model.decoder[j], nn.Linear):
+                    if ex_model.decoder[i].weight.shape == new_model.decoder[j].weight.shape:
+                        new_model.decoder[j].weight.data = ex_model.decoder[i].weight.data.clone()
+                        new_model.decoder[j].bias.data = ex_model.decoder[i].bias.data.clone()
+                        break
