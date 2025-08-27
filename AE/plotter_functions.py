@@ -217,3 +217,34 @@ def plot_expected_kl_vs_g(gauged_states, g_range=np.linspace(0.1, 5.0, 50)):
     plt.show()
 
 
+
+
+def visualize_bottleneck_features(model, device, img_shape=(28, 28)):
+    """
+    Visualize what each feature in the bottleneck represents by decoding one-hot vectors.
+    
+    Args:
+        model: The trained autoencoder model with a .decode() method.
+        device: The device to run computations on.
+        img_shape: Shape to reshape the decoded output (default: (28, 28) for MNIST).
+    """
+    model.eval()
+    latent_dim = model.latent_dim
+    n_cols = (latent_dim + 1) // 2
+    n_rows = 2
+    with torch.no_grad():
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(2.5 * n_cols, 5))
+        axes = axes.flatten()
+        for i in range(latent_dim):
+            one_hot = torch.zeros((1, latent_dim), device=device)
+            one_hot[0, i] = 1.0
+            decoded = model.decode(one_hot).cpu().view(*img_shape)
+            ax = axes[i]
+            ax.imshow(decoded, cmap='gray')
+            ax.set_title(f'Feature {i+1}')
+            ax.axis('off')
+        # Hide any unused subplots
+        for j in range(latent_dim, n_rows * n_cols):
+            axes[j].axis('off')
+        plt.tight_layout()
+        plt.show()
