@@ -10,7 +10,7 @@ from collections import Counter
 
 
 
-def get_empirical_states_dict(model, dataloader, verbose=False):            # USED IN DEPTH.UTILS
+def get_empirical_states_dict(model, dataloader, verbose=False, threshold_for_binarization=0.5):            # USED IN DEPTH.UTILS
     """
     Extracts binary internal representations from the autoencoder and counts their frequencies.
 
@@ -37,7 +37,7 @@ def get_empirical_states_dict(model, dataloader, verbose=False):            # US
             latent_vectors = model.encode(batch_data.view(batch_data.size(0), -1))
 
             # Convert to binary: < 0.5 → 0, >= 0.5 → 1
-            binary_states = (latent_vectors >= 0.5).int()
+            binary_states = (latent_vectors >= threshold_for_binarization).int()
 
             # Convert each binary vector to tuple (hashable for dictionary keys)
             for i in range(binary_states.size(0)):

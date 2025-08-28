@@ -11,7 +11,7 @@ class AE_0(nn.Module):
         hidden_layers=1,
         decrease_rate=0.5,
         activation_fn=nn.ReLU,
-        output_activation_encoder=None,
+        output_activation_encoder=nn.Sigmoid,
         output_activation_decoder=None,
         BatchNorm=False,
         LayerNorm=False,
@@ -73,7 +73,7 @@ class AE_0(nn.Module):
             data_flat = data.view(-1, self.input_dim)  # data_flat has size (batch_size(64), 28, 28)
         else:
             data_flat = data
-        return self.bottleneck_in(self.amputated_encoder(data_flat))
+        return self.encoder(data_flat)
 
 
     def decode(self, data):

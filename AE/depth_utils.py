@@ -208,10 +208,15 @@ def find_minimum_kl_simulated_annealing(
 
 
 def get_empirical_gauged_states_dict(
-    model, data_loader, brute_force=False, verbose=False
-):
+        model,
+        data_loader,
+        brute_force = False,
+        verbose = False,
+        threshold_for_binarization = 0.5
+    ):
+    
     empirical_states_dict = get_empirical_states_dict(
-        model, data_loader, verbose=verbose
+        model, data_loader, verbose=verbose, threshold_for_binarization=threshold_for_binarization
     )
     flipped_states_dict = flip_gauge_bits(empirical_states_dict)
 
@@ -290,11 +295,11 @@ def get_optimal_g(gauged_states, plot_graph=False, verbose=False):
 
 
 
-def get_KL_with_HFM_with_optimal_g(model, data_loader, return_g=False):   # IMPORTED IN DEPTH_ANALYSIS
+def get_KL_with_HFM_with_optimal_g(model, data_loader, return_g=False, threshold_for_binarization=0.5):   # IMPORTED IN DEPTH_ANALYSIS
     """
     Calculate the KL divergence between the empirical states and the HFM with the optimal g.
     """
-    gauged_states_dict = get_empirical_gauged_states_dict(model, data_loader)
+    gauged_states_dict = get_empirical_gauged_states_dict(model, data_loader, threshold_for_binarization=threshold_for_binarization)
     optimal_g = get_optimal_g(gauged_states_dict)
     kl_divergence = calculate_kl_divergence_with_HFM(gauged_states_dict, optimal_g)
 
