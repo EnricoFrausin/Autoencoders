@@ -10,7 +10,7 @@ from collections import Counter
 
 
 
-def get_empirical_states_dict(model, dataloader, verbose=False, threshold_for_binarization=0.5):            # USED IN DEPTH.UTILS
+def get_emp_states_dict(model, dataloader, threshold_for_binarization=0.5, verbose=False):            # USED IN DEPTH.UTILS
     """
     Extracts binary internal representations from the autoencoder and counts their frequencies.
 
@@ -46,32 +46,32 @@ def get_empirical_states_dict(model, dataloader, verbose=False, threshold_for_bi
                 total_samples += 1
 
     # Normalize frequencies by total_samples
-    empirical_states_dict = {k: v / total_samples for k, v in state_counts.items()}
+    emp_states_dict = {k: v / total_samples for k, v in state_counts.items()}
 
     if verbose:
         print(f"Total samples processed: {total_samples}")
-        print(f"Number of unique binary states found: {len(empirical_states_dict)}")
+        print(f"Number of unique binary states found: {len(emp_states_dict)}")
         # print(f"Theoretical maximum states for {model.latent_dim}-dim latent: {2**model.latent_dim}")
 
-    return empirical_states_dict
+    return emp_states_dict
 
 
 
 
 
-def analyze_binary_frequencies(empirical_states_dict, top_k=10):
+def analyze_binary_frequencies(emp_states_dict, top_k=10):
     """
     Analyze and display the most frequent binary states.
 
     Args:
-        empirical_states_dict: Dictionary from get_empirical_states_dict
+        emp_states_dict: Dictionary from get_emp_states_dict
         top_k: Number of top states to display
     """
     import matplotlib.pyplot as plt
 
     # Sort by frequency (descending)
     sorted_states = sorted(
-        empirical_states_dict.items(), key=lambda x: x[1], reverse=True
+        emp_states_dict.items(), key=lambda x: x[1], reverse=True
     )
 
     print(f"\nTop {top_k} most frequent binary states:")
@@ -202,12 +202,12 @@ def get_HFM_prob(m_s: float, g: float, Z: float, logits: True) -> float:
 
 
 
-def calculate_kl_divergence_with_HFM(empirical_states_dict, g):         # USED IN DEPTH.UTILS
+def calculate_kl_divergence_with_HFM(emp_states_dict, g):         # USED IN DEPTH.UTILS
     """
     Calculates the KL divergence between an empirical probability distribution
     and a theoretical distribution defined by the HFM with parameter `g`.
     Args:
-        empirical_states_dict (dict): A dictionary mapping states (tuples or hashable types) to their empirical probabilities.
+        emp_states_dict (dict): A dictionary mapping states (tuples or hashable types) to their empirical probabilities.
         g (float): The parameter of the HFM model controlling the strength of the field.
 
     Returns:
@@ -217,17 +217,17 @@ def calculate_kl_divergence_with_HFM(empirical_states_dict, g):         # USED I
     """
 
     empirical_probs_values = torch.tensor(
-        list(empirical_states_dict.values()), dtype=torch.float32
+        list(emp_states_dict.values()), dtype=torch.float32
     )
     empirical_distribution = torch.distributions.Categorical(empirical_probs_values)
     empirical_entropy = empirical_distribution.entropy()
 
-    latent_dim = len(next(iter(empirical_states_dict)))
+    latent_dim = len(next(iter(emp_states_dict)))
     log_Z = math.log(calculate_Z_theoretical(latent_dim, g))
 
     mean_H_s = 0
 
-    for state, p_emp in empirical_states_dict.items():
+    for state, p_emp in emp_states_dict.items():
         m_s = get_m_s(state)  # 1-indexed
         mean_H_s += p_emp * m_s
 

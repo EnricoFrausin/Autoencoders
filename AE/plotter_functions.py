@@ -9,6 +9,16 @@ from AE.utils import get_m_s
 
 
 
+def save_fig(save_dir, title):
+
+    if save_dir is not None:
+        import os
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, title)
+        plt.savefig(save_path)
+
+    return
+
 
 def plot_random_images_and_latents(
     model, val_loader, device, num_samples=5, EMNIST=False
@@ -219,7 +229,7 @@ def plot_expected_kl_vs_g(gauged_states, g_range=np.linspace(0.1, 5.0, 50)):
 
 
 
-def visualize_bottleneck_features(model, device, img_shape=(28, 28)):
+def visualize_bottleneck_neurons(model, device, img_shape=(28, 28), save_dir = None, file_name=None):
     """
     Visualize what each feature in the bottleneck represents by decoding one-hot vectors.
     
@@ -241,10 +251,62 @@ def visualize_bottleneck_features(model, device, img_shape=(28, 28)):
             decoded = model.decode(one_hot).cpu().view(*img_shape)
             ax = axes[i]
             ax.imshow(decoded, cmap='gray')
-            ax.set_title(f'Feature {i+1}')
+            ax.set_title(f'Neuron {i+1}')
             ax.axis('off')
         # Hide any unused subplots
         for j in range(latent_dim, n_rows * n_cols):
             axes[j].axis('off')
         plt.tight_layout()
+
+        save_fig(save_dir, file_name)
+
         plt.show()
+
+
+
+
+#–––––––––––––––––––––––––––––––––––––––––DEPTH ANALYSIS–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+
+
+def plot_KLs_vs_hidden_layers(KLs, gs, dataset_name, save_dir = None):                                  # EXPORTED TO DEPTH_ANALYSIS
+    """
+    Plots KLs vs number of hidden layers, with gs indicated by a colormap.
+    Assumes KLs and gs are lists of length 4 (for 1 to 4 hidden layers).
+    """
+
+    num_layers = np.arange(1, len(KLs) + 1)
+    gs = np.array(gs)
+
+    plt.figure(figsize=(7, 5))
+    scatter = plt.scatter(num_layers, KLs, c=gs, cmap="viridis", s=100)
+    plt.colorbar(scatter, label="g")
+    plt.xlabel("Number of Hidden Layers")
+    plt.ylabel("KL Divergence")
+    plt.title("KL Divergence vs Hidden Layers - "+ f"\n{dataset_name} Dataset")
+    plt.xticks(num_layers)
+    plt.grid(True)
+
+    save_fig(save_dir, f"KL_{dataset_name}.png")
+
+    plt.show()
+
+
+def datasets_dicts_comparison(KLs_dict, save_dir = None):                                            # EXPORTED TO DEPTH_ANALYSIS
+    """
+    Plots KL values for each dataset in KLs_dict on the same graph.
+    X-axis: number of hidden layers (1, 2, 3, ...)
+    """
+    plt.figure(figsize=(8, 5))
+    for key, values in KLs_dict.items():
+        x = list(range(1, len(values) + 1))
+        plt.plot(x, values, marker='o', label=key)
+    plt.xlabel("Number of hidden layers")
+    plt.ylabel("KL value")
+    plt.title("KLs vs Number of Hidden Layers")
+    plt.legend()
+    plt.grid(True)
+
+    save_dir(save_dir, "comparison.png")
+    
+    plt.show()

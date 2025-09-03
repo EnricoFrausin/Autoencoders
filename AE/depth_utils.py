@@ -6,9 +6,10 @@ import random
 import math
 
 from AE.utils import calculate_kl_divergence_with_HFM
-from AE.utils import get_empirical_states_dict
+from AE.utils import get_emp_states_dict
 from AE.utils import calculate_Z_theoretical
 from AE.utils import get_m_s
+
 
 
 
@@ -16,27 +17,25 @@ from AE.utils import get_m_s
 
 
 
-def flip_gauge_bits(empirical_states_dict):  # for return_minimum_kl
+def flip_gauge_bits(emp_states_dict):  # for return_minimum_kl
     """
     Flip specific bits in all states based on the activated bits in the most frequent state.
 
     Args:
-        empirical_states_dict (dict): Dictionary mapping state tuples to their empirical probabilities.
-                                From get_empirical_states_dict.
+        emp_states_dict (dict): Dictionary mapping state tuples to their empirical probabilities.
+                                From get_emp_states_dict.
 
     Returns:
         dict: A new dictionary with the same probabilities but flipped states according to the rule.
     """
-    if not empirical_states_dict:
-        return {}
 
-    most_frequent_state = max(empirical_states_dict.items(), key=lambda x: x[1])[0]
+    most_frequent_state = max(emp_states_dict.items(), key=lambda x: x[1])[0]
 
     bits_to_flip = [i for i, bit in enumerate(most_frequent_state) if bit == 1]
 
     emp_gauged_states_dict = {}
 
-    for state, prob in empirical_states_dict.items():
+    for state, prob in emp_states_dict.items():
         new_state = list(state)
 
         for bit_pos in bits_to_flip:
@@ -53,7 +52,7 @@ def flip_gauge_bits(empirical_states_dict):  # for return_minimum_kl
 # To be used to find the best permutation of the states that minimizes the KL divergence with the HFM model.
 # The same permutation should be valid for all g values, therefore it is not necessary to recalculate the gauge for different g values. See ```print_minimum_kl_in_g_range``` below.
 def find_minimum_kl_brute_force(
-    good_gauged_probs,
+    emp_states_dict_flipgauged,
     g=np.log(2),
     return_gauged_states_dict=True,
     print_permutation_steps=float("inf"),
@@ -63,7 +62,7 @@ def find_minimum_kl_brute_force(
     between the permuted empirical distribution and the HFM model with parameter g.
 
     Args:
-        good_gauged_probs (dict): Dictionary mapping state tuples to probabilities.
+        emp_states_dict_flipgauged (dict): Dictionary mapping state tuples to probabilities.
         g (float, optional): HFM model parameter. Defaults to np.log(2).
         return_gauged_states_dict (bool, optional): If True, returns the best permutation and state dict.
 
@@ -72,33 +71,33 @@ def find_minimum_kl_brute_force(
         best_permutation (tuple or None): The permutation that yields the minimum KL (if requested).
         best_state_dict (dict or None): The permuted state dictionary (if requested).
     """
-    states_matrix = np.array(list(good_gauged_probs.keys()))
-    state_len = states_matrix.shape[1]
+    emp_states_matrix = np.array(list(emp_states_dict_flipgauged.keys()))
+    state_len = emp_states_matrix.shape[1]
     permutations_list = list(permutations(range(state_len)))
 
     total_permutations = len(permutations_list)
 
     minimum_kl = float("inf")
     best_permutation = None
-    gauged_states_dict = None
+    emp_states_dict_gauged = None
     i = 0
 
     for perm in permutations_list:
         i += 1
 
-        states_matrix_copy = np.empty(states_matrix.shape)
-        states_matrix_copy[:, :] = states_matrix[:, list(perm)]
+        states_matrix_copy = np.empty(emp_states_matrix.shape)
+        states_matrix_copy[:, :] = emp_states_matrix[:, list(perm)]
 
         permutated_state_dict = dict(
             (tuple(row), prob)
-            for row, prob in zip(states_matrix_copy, good_gauged_probs.values())
+            for row, prob in zip(states_matrix_copy, emp_states_dict_flipgauged.values())
         )
 
         temporary_kl = calculate_kl_divergence_with_HFM(permutated_state_dict, g=g)
         if temporary_kl < minimum_kl:
             minimum_kl = temporary_kl
             best_permutation = perm
-            gauged_states_dict = permutated_state_dict
+            emp_states_dict_gauged = permutated_state_dict
 
         if i % print_permutation_steps == 0:
             print(
@@ -109,12 +108,12 @@ def find_minimum_kl_brute_force(
         f"Total permutations processed: {total_permutations}, Minimum KL: {minimum_kl}, Best permutation: {best_permutation}"
     )
 
-    return (minimum_kl, gauged_states_dict) if return_gauged_states_dict else minimum_kl
+    return (minimum_kl, emp_states_dict_gauged) if return_gauged_states_dict else minimum_kl
 
 
 # RENAME VARIABLES
 def find_minimum_kl_simulated_annealing(
-    good_gauged_probs,
+    emp_states_dict_flipgauged,
     g=np.log(2),
     return_gauged_states_dict=True,
     initial_temp=10.0,
@@ -126,18 +125,18 @@ def find_minimum_kl_simulated_annealing(
     Uses simulated annealing to find a permutation of state columns that minimizes
     the KL divergence with the HFM model.
     """
-    states_matrix = np.array(list(good_gauged_probs.keys()))
-    state_len = states_matrix.shape[1]
+    emp_states_matrix = np.array(list(emp_states_dict_flipgauged.keys()))
+    state_len = emp_states_matrix.shape[1]
 
     # Start with identity permutation
     current_perm = list(range(state_len))
 
     # Create initial state dictionary
-    states_matrix_copy = np.empty(states_matrix.shape)
-    states_matrix_copy[:, :] = states_matrix[:, current_perm]
+    states_matrix_copy = np.empty(emp_states_matrix.shape)
+    states_matrix_copy[:, :] = emp_states_matrix[:, current_perm]
     current_state_dict = dict(
         (tuple(row), prob)
-        for row, prob in zip(states_matrix_copy, good_gauged_probs.values())
+        for row, prob in zip(states_matrix_copy, emp_states_dict_flipgauged.values())
     )
 
     # Calculate initial KL divergence
@@ -164,10 +163,10 @@ def find_minimum_kl_simulated_annealing(
         )
 
         # Calculate KL for the candidate permutation
-        states_matrix_copy[:, :] = states_matrix[:, candidate_perm]
+        states_matrix_copy[:, :] = emp_states_matrix[:, candidate_perm]
         candidate_state_dict = dict(
             (tuple(row), prob)
-            for row, prob in zip(states_matrix_copy, good_gauged_probs.values())
+            for row, prob in zip(states_matrix_copy, emp_states_dict_flipgauged.values())
         )
         candidate_kl = calculate_kl_divergence_with_HFM(candidate_state_dict, g=g)
 
@@ -207,7 +206,7 @@ def find_minimum_kl_simulated_annealing(
 
 
 
-def get_empirical_gauged_states_dict(
+def get_emp_states_dict_gauged(
         model,
         data_loader,
         brute_force = False,
@@ -215,27 +214,27 @@ def get_empirical_gauged_states_dict(
         threshold_for_binarization = 0.5
     ):
     
-    empirical_states_dict = get_empirical_states_dict(
+    emp_states_dict = get_emp_states_dict(
         model, data_loader, verbose=verbose, threshold_for_binarization=threshold_for_binarization
     )
-    flipped_states_dict = flip_gauge_bits(empirical_states_dict)
+    flipped_states_dict = flip_gauge_bits(emp_states_dict)
 
     if brute_force:
-        minimum_kl, gauged_states_dict = find_minimum_kl_brute_force(
+        minimum_kl, emp_states_dict_gauged = find_minimum_kl_brute_force(
             flipped_states_dict,
             g=np.log(2),
             return_gauged_states_dict=True,
             verbose=verbose,
         )
     else:
-        minimum_kl, gauged_states_dict = find_minimum_kl_simulated_annealing(
+        minimum_kl, emp_states_dict_gauged = find_minimum_kl_simulated_annealing(
             flipped_states_dict,
             g=np.log(2),
             return_gauged_states_dict=True,
             verbose=verbose,
         )
 
-    return gauged_states_dict
+    return emp_states_dict_gauged
 
 
 
@@ -295,53 +294,56 @@ def get_optimal_g(gauged_states, plot_graph=False, verbose=False):
 
 
 
-def get_KL_with_HFM_with_optimal_g(model, data_loader, return_g=False, threshold_for_binarization=0.5):   # IMPORTED IN DEPTH_ANALYSIS
+def get_KL_with_HFM_with_optimal_g(model, data_loader, return_g=False, threshold_for_binarization=0.5):   # EXPORTED TO DEPTH_ANALYSIS
     """
     Calculate the KL divergence between the empirical states and the HFM with the optimal g.
     """
-    gauged_states_dict = get_empirical_gauged_states_dict(model, data_loader, threshold_for_binarization=threshold_for_binarization)
-    optimal_g = get_optimal_g(gauged_states_dict)
-    kl_divergence = calculate_kl_divergence_with_HFM(gauged_states_dict, optimal_g)
+    emp_states_dict_gauged = get_emp_states_dict_gauged(model, data_loader, threshold_for_binarization=threshold_for_binarization)
+    optimal_g = get_optimal_g(emp_states_dict_gauged)
+    kl_divergence = calculate_kl_divergence_with_HFM(emp_states_dict_gauged, optimal_g)
 
     return kl_divergence, optimal_g if return_g else kl_divergence
 
 
-#–––––––––––––––––––––––––––––––––––––––––PLOTS–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
 
 
-
-def plot_KLs_vs_hidden_layers(KLs, gs, dataset_name):                                  # IMPORTED IN DEPTH_ANALYSIS
+def get_bottleneck_neurons_frequencies(model, dataloader, threshold_for_binarization=0.5):
     """
-    Plots KLs vs number of hidden layers, with gs indicated by a colormap.
-    Assumes KLs and gs are lists of length 4 (for 1 to 4 hidden layers).
+    Calculates the activation frequencies of bottleneck neurons in an autoencoder model.
+    This function computes how frequently each neuron in the bottleneck layer is activated
+    across the dataset provided by the dataloader. The activations are binarized using the
+    specified threshold before calculating the frequencies.
+    Args:
+        model (torch.nn.Module): The autoencoder model containing the bottleneck layer.
+        dataloader (torch.utils.data.DataLoader): DataLoader providing the input data.
+        threshold_for_binarization (float, optional): Threshold to binarize neuron activations.
+            Defaults to 0.5.
+    Returns:
+        dict: A dictionary mapping each bottleneck neuron index to its activation frequency
+        (i.e., the proportion of samples for which the neuron is active).
     """
+    
+    emp_states_dict = get_emp_states_dict(model, dataloader, threshold_for_binarization)
 
-    num_layers = np.arange(1, len(KLs) + 1)
-    gs = np.array(gs)
-
-    plt.figure(figsize=(7, 5))
-    scatter = plt.scatter(num_layers, KLs, c=gs, cmap="viridis", s=100)
-    plt.colorbar(scatter, label="g")
-    plt.xlabel("Number of Hidden Layers")
-    plt.ylabel("KL Divergence")
-    plt.title("KL Divergence vs Hidden Layers - "+ f"\n{dataset_name} Dataset")
-    plt.xticks(num_layers)
-    plt.grid(True)
-    plt.show()
+    return calculate_neurons_activation_frequencies(emp_states_dict)
 
 
-def datasets_dicts_comparison(KLs_dict):                                            # IMPORTED IN DEPTH_ANALYSIS
+
+
+def calculate_neurons_activation_frequencies(emp_states_dict):
     """
-    Plots KL values for each dataset in KLs_dict on the same graph.
-    X-axis: number of hidden layers (1, 2, 3, ...)
+    Given a dictionary where keys are binary tuples (or lists) and values are frequencies,
+    returns a vector with the weighted sum (activation frequency) for each neuron/dimension.
+
+    Args:
+        emp_states_dict (dict): {(0,1,1,...): freq, ...}
+
+    Returns:
+        np.ndarray: activation frequency for each dimension
     """
-    plt.figure(figsize=(8, 5))
-    for key, values in KLs_dict.items():
-        x = list(range(1, len(values) + 1))
-        plt.plot(x, values, marker='o', label=key)
-    plt.xlabel("Number of hidden layers")
-    plt.ylabel("KL value")
-    plt.title("KLs vs Number of Hidden Layers")
-    plt.legend()
-    plt.grid(True)
-    plt.show()
+    # Convert keys to numpy array
+    states = np.array(list(emp_states_dict.keys()))
+    freqs = np.array(list(emp_states_dict.values()))
+    # Weighted sum along each column (dimension)
+    activation_freqs = np.average(states, axis=0, weights=freqs)
+    return activation_freqs
