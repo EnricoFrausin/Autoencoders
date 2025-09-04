@@ -2,9 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from AE.utils import calculate_kl_divergence_with_HFM
-from AE.utils import calculate_Z_theoretical, get_HFM_prob
-from AE.utils import get_m_s
+from AE.utils import calc_hfm_kld
+from AE.utils import calc_Z_theoretical, calc_hfm_prob
+from AE.utils import calc_ms
 
 
 

@@ -10,7 +10,7 @@ from collections import Counter
 
 
 
-def get_emp_states_dict(model, dataloader, threshold_for_binarization=0.5, verbose=False):            # USED IN DEPTH.UTILS
+def compute_emp_states_dict(model, dataloader, binarize_threshold=0.5, verbose=False):            # USED IN DEPTH.UTILS
     """
     Extracts binary internal representations from the autoencoder and counts their frequencies.
 
@@ -22,7 +22,6 @@ def get_emp_states_dict(model, dataloader, threshold_for_binarization=0.5, verbo
     Returns:
         dict: Dictionary where keys are binary state tuples and values are frequencies
     """
-    import torch
 
     model.eval()
     device = model.device
@@ -33,25 +32,21 @@ def get_emp_states_dict(model, dataloader, threshold_for_binarization=0.5, verbo
         for batch_data, _ in dataloader:
             batch_data = batch_data.to(device)
 
-            # Encode to get latent representations (after sigmoid)
-            latent_vectors = model.encode(batch_data.view(batch_data.size(0), -1))
 
-            # Convert to binary: < 0.5 → 0, >= 0.5 → 1
-            binary_states = (latent_vectors >= threshold_for_binarization).int()
+            latent_vectors = model.encode(batch_data.view(batch_data.size(0), -1))      # Encode to get latent representations (after sigmoid)
 
-            # Convert each binary vector to tuple (hashable for dictionary keys)
-            for i in range(binary_states.size(0)):
+            binary_states = (latent_vectors >= binarize_threshold).int()        # To binarize vectors: < 0.5 → 0, >= 0.5 → 1
+            
+            for i in range(binary_states.size(0)):                                      # Convert each binary vector to tuple (hashable for dictionary keys)
                 state_tuple = tuple(binary_states[i].cpu().numpy())
                 state_counts[state_tuple] += 1
                 total_samples += 1
 
-    # Normalize frequencies by total_samples
     emp_states_dict = {k: v / total_samples for k, v in state_counts.items()}
 
     if verbose:
         print(f"Total samples processed: {total_samples}")
         print(f"Number of unique binary states found: {len(emp_states_dict)}")
-        # print(f"Theoretical maximum states for {model.latent_dim}-dim latent: {2**model.latent_dim}")
 
     return emp_states_dict
 
@@ -64,7 +59,7 @@ def analyze_binary_frequencies(emp_states_dict, top_k=10):
     Analyze and display the most frequent binary states.
 
     Args:
-        emp_states_dict: Dictionary from get_emp_states_dict
+        emp_states_dict: Dictionary from compute_emp_states_dict
         top_k: Number of top states to display
     """
     import matplotlib.pyplot as plt
@@ -138,7 +133,7 @@ def mean_s_k(n, k, g):  # 0-indexed k
 
 
 
-def get_m_s(state_tuple, active_category_is_zero=False):            # USED IN DEPTH.UTILS
+def calc_ms(state_tuple, active_category_is_zero=False):            # USED IN DEPTH.UTILS
     """
     Calculates m_s for a given state tuple, 1-indexed.
     m_s is the index of the last active neuron.
@@ -155,7 +150,7 @@ def get_m_s(state_tuple, active_category_is_zero=False):            # USED IN DE
 
 
 
-def calculate_Z_theoretical(latent_dim, g_param):           # USED IN DEPTH.UTILS
+def calc_Z_theoretical(latent_dim, g_param):           # USED IN DEPTH.UTILS
     """
     Calculates the normalization constant Z based on the provided analytical formula.
 
@@ -188,7 +183,7 @@ def calculate_Z_theoretical(latent_dim, g_param):           # USED IN DEPTH.UTIL
 
 
 
-def get_HFM_prob(m_s: float, g: float, Z: float, logits: True) -> float:
+def calc_hfm_prob(m_s: float, g: float, Z: float, logits: True) -> float:
     """
     Calulates the HFM theoretical probability for a state, given m_s, g, and Z.
     If logits=True (default) it returns the log probabilities.
@@ -202,7 +197,7 @@ def get_HFM_prob(m_s: float, g: float, Z: float, logits: True) -> float:
 
 
 
-def calculate_kl_divergence_with_HFM(emp_states_dict, g):         # USED IN DEPTH.UTILS
+def calc_hfm_kld(emp_states_dict, g):         # USED IN DEPTH.UTILS
     """
     Calculates the KL divergence between an empirical probability distribution
     and a theoretical distribution defined by the HFM with parameter `g`.
@@ -223,16 +218,16 @@ def calculate_kl_divergence_with_HFM(emp_states_dict, g):         # USED IN DEPT
     empirical_entropy = empirical_distribution.entropy()
 
     latent_dim = len(next(iter(emp_states_dict)))
-    log_Z = math.log(calculate_Z_theoretical(latent_dim, g))
+    log_Z = math.log(calc_Z_theoretical(latent_dim, g))
 
     mean_H_s = 0
 
     for state, p_emp in emp_states_dict.items():
-        m_s = get_m_s(state)  # 1-indexed
+        m_s = calc_ms(state)  # 1-indexed
         mean_H_s += p_emp * m_s
 
     g_times_H_s = g * mean_H_s
 
-    kl_divergence = -empirical_entropy + g_times_H_s + log_Z
+    kl_div = -empirical_entropy + g_times_H_s + log_Z
 
-    return kl_divergence
+    return kl_div
