@@ -34,7 +34,7 @@ def compute_bottleneck_neurons_activ_freq(
         binarize_threshold (float, optional): Threshold to binarize neuron activations.
             Defaults to 0.5.
     Returns:
-        dict: A dictionary mapping each bottleneck neuron index to its activation frequency
+        np.ndarray: A numpy array with activation frequency as entries.
         (i.e., the proportion of samples for which the neuron is active).
     """
     
@@ -97,7 +97,7 @@ def calc_neurons_activ_freq(emp_states_dict):       # USED IN compute_bottleneck
 
 
 
-def compute_emp_states_dict_gauged(                 # USED IN calc_hfm_kld_with_optimal_g
+def compute_emp_states_dict_gauged(                 # USED IN calc_hfm_kld_with_optimal_g AND EXPORTED TO DEPTH.UTILS
         model: Module,
         data_loader: DataLoader,
         binarize_threshold = 0.5,
@@ -106,19 +106,22 @@ def compute_emp_states_dict_gauged(                 # USED IN calc_hfm_kld_with_
         verbose = False
     ):
     """
-    Computes the empirical state distribution from  and dataloader, applies gauge flipping,
-    and computes the permutation of state columns that minimizes the KL divergence with the HFM model.
-    Returns the gauged empirical state dictionary.
+    Computes the empirical latent state distribution from a model and dataloader, applies gauge flipping
+    (bit inversion based on the most frequent state), and finds the permutation of latent dimensions
+    that minimizes the KL divergence with the HFM model. The permutation is found using either brute-force
+    search or simulated annealing.
 
     Args:
         model (torch.nn.Module): The trained autoencoder model.
         data_loader (torch.utils.data.DataLoader): DataLoader providing input data.
         binarize_threshold (float, optional): Threshold for binarizing latent activations. Defaults to 0.5.
         brute_force (bool, optional): If True, uses brute-force search for optimal permutation; otherwise uses simulated annealing. Defaults to False.
-        verbose (bool, optional): If True, prints progress information. Defaults to False.
+        return_perm (bool, optional): If True, returns both the gauged state dictionary and the optimal permutation. Defaults to False.
+        verbose (bool, optional): If True, prints progress information during permutation search. Defaults to False.
 
     Returns:
         dict: Empirical state dictionary with columns permuted and gauge-flipped to minimize KL divergence with the HFM model.
+        tuple (optional): The optimal permutation of latent dimensions (if return_perm is True).
     """
 
     emp_states_dict = compute_emp_states_dict(

@@ -173,17 +173,17 @@ def plot_expected_ms_vs_g(gauged_states, g_range=np.linspace(0.1, 5.0, 50)):
     """
     latent_dim = len(next(iter(gauged_states)))
     m_s_values = {
-        state: get_m_s(state, active_category_is_zero=False)
+        state: calc_ms(state, active_category_is_zero=False)
         for state in gauged_states.keys()
     }
     expected_ms_list = []
 
     for g in g_range:
-        Z = calculate_Z_theoretical(latent_dim, g)
+        Z = calc_Z_theoretical(latent_dim, g)
         expected_ms = 0.0
         for state, empirical_prob in gauged_states.items():
             m_s = m_s_values[state]
-            hfm_prob = get_HFM_prob(m_s, g, Z, logits=False)
+            hfm_prob = calc_hfm_prob(m_s, g, Z, logits=False)
             # expected_ms += m_s * hfm_prob * empirical_prob
             expected_ms += m_s * hfm_prob
         # expected_ms += m_s * empirical_prob
@@ -216,7 +216,7 @@ def plot_expected_kl_vs_g(gauged_states, g_range=np.linspace(0.1, 5.0, 50)):
     expected_kl_list = []
 
     for g in g_range:
-        expected_kl_list.append(calculate_kl_divergence_with_HFM(gauged_states, g))
+        expected_kl_list.append(calc_hfm_kld(gauged_states, g))
 
     plt.figure(figsize=(8, 6))
     plt.plot(g_range, expected_kl_list, marker="o")
