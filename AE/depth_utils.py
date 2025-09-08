@@ -21,7 +21,8 @@ from AE.utils import calc_ms
 def compute_bottleneck_neurons_activ_freq(
         model: Module,
         dataloader: DataLoader,
-        binarize_threshold = 0.5
+        binarize_threshold = 0.5,
+        flip_gauge = False
 ):          
     """
     Calculates the activation frequencies of bottleneck neurons in an autoencoder model.
@@ -33,14 +34,49 @@ def compute_bottleneck_neurons_activ_freq(
         dataloader (torch.utils.data.DataLoader): DataLoader providing the input data.
         binarize_threshold (float, optional): Threshold to binarize neuron activations.
             Defaults to 0.5.
+        flip_gauge (bool, optional): If True, flips the bits of emp_states such that the most frequent state is the all zero entries state.
+            Defaults to false.
     Returns:
         np.ndarray: A numpy array with activation frequency as entries.
         (i.e., the proportion of samples for which the neuron is active).
     """
     
     emp_states_dict = compute_emp_states_dict(model, dataloader, binarize_threshold)
+
+    if flip_gauge:
+        emp_states_dict = flip_gauge_bits(emp_states_dict)
     
     bottleneck_activ_freq = calc_neurons_activ_freq(emp_states_dict)
+
+    return bottleneck_activ_freq
+
+
+
+def compute_bottleneck_neurons_activ_freq_gauged(
+        model: Module,
+        dataloader: DataLoader,
+        binarize_threshold = 0.5,
+):          
+    """
+    Calculates the activation frequencies of bottleneck neurons in an autoencoder model, after finding the correct gauge.
+    This function computes how frequently each neuron in the bottleneck layer is activated
+    across the dataset provided by the dataloader. The activations are binarized using the
+    specified threshold before calculating the frequencies.
+    Args:
+        model (torch.nn.Module): The autoencoder model containing the bottleneck layer.
+        dataloader (torch.utils.data.DataLoader): DataLoader providing the input data.
+        binarize_threshold (float, optional): Threshold to binarize neuron activations.
+            Defaults to 0.5.
+        flip_gauge (bool, optional): If True, flips the bits of emp_states such that the most frequent state is the all zero entries state.
+            Defaults to false.
+    Returns:
+        np.ndarray: A numpy array with activation frequency as entries.
+        (i.e., the proportion of samples for which the neuron is active).
+    """
+    
+    emp_states_dict_gauged = compute_emp_states_dict_gauged(model, dataloader, binarize_threshold)
+    
+    bottleneck_activ_freq = calc_neurons_activ_freq(emp_states_dict_gauged)
 
     return bottleneck_activ_freq
 
@@ -101,6 +137,7 @@ def compute_emp_states_dict_gauged(                 # USED IN calc_hfm_kld_with_
         model: Module,
         data_loader: DataLoader,
         binarize_threshold = 0.5,
+        flip_gauge = True,
         brute_force = False,
         return_perm = False,
         verbose = False
@@ -115,6 +152,7 @@ def compute_emp_states_dict_gauged(                 # USED IN calc_hfm_kld_with_
         model (torch.nn.Module): The trained autoencoder model.
         data_loader (torch.utils.data.DataLoader): DataLoader providing input data.
         binarize_threshold (float, optional): Threshold for binarizing latent activations. Defaults to 0.5.
+        flip_gauge (bool, optional): If True, flips the bits of emp_states such that the most frequent state is the all zero entries state.
         brute_force (bool, optional): If True, uses brute-force search for optimal permutation; otherwise uses simulated annealing. Defaults to False.
         return_perm (bool, optional): If True, returns both the gauged state dictionary and the optimal permutation. Defaults to False.
         verbose (bool, optional): If True, prints progress information during permutation search. Defaults to False.
@@ -128,16 +166,20 @@ def compute_emp_states_dict_gauged(                 # USED IN calc_hfm_kld_with_
         model, data_loader, verbose=verbose, binarize_threshold=binarize_threshold
     )
 
-    emp_states_dict_flipgauged = flip_gauge_bits(emp_states_dict)
+    if flip_gauge:
+        emp_states_dict = flip_gauge_bits(emp_states_dict)
 
     if brute_force:
-        gauge_perm = compute_perm_minimizing_hfm_kld_brute_force(emp_states_dict_flipgauged, verbose=verbose)
+        gauge_perm = compute_perm_minimizing_hfm_kld_brute_force(emp_states_dict, verbose=verbose)
     else:
-        gauge_perm = compute_perm_minimizing_hfm_kld_simul_anneal(emp_states_dict_flipgauged, verbose=verbose)
+        gauge_perm = compute_perm_minimizing_hfm_kld_simul_anneal(emp_states_dict, verbose=verbose)
 
-    emp_states_dict_gauged = {tuple(k[i] for i in gauge_perm): v for k, v in emp_states_dict_flipgauged.items()}
+    emp_states_dict_gauged = {tuple(k[i] for i in gauge_perm): v for k, v in emp_states_dict.items()}
 
-    return emp_states_dict_gauged, gauge_perm if return_perm else emp_states_dict_gauged
+    if return_perm:
+        return emp_states_dict_gauged, gauge_perm
+    else:
+        return emp_states_dict_gauged
 
 
 
@@ -239,7 +281,7 @@ def flip_gauge_bits(emp_states_dict):                       # USED IN compute_em
 # To be used to compute the best permutation of the states that minimizes the KL divergence with the HFM model.
 # The same permutation should be valid for all g values, therefore it is not necessary to recalculate the gauge for different g values. See ```print_minimum_kl_in_g_range``` below.
 def compute_perm_minimizing_hfm_kld_brute_force(
-    emp_states_dict_flipgauged: dict,
+    emp_states_dict: dict,
     g = np.log(2),
     verbose = False,
 ):
@@ -248,7 +290,7 @@ def compute_perm_minimizing_hfm_kld_brute_force(
     between the permuted empirical distribution and the HFM model with parameter g.
 
     Args:
-        emp_states_dict_flipgauged (dict): Dictionary mapping state tuples to probabilities.
+        emp_states_dict (dict): Dictionary mapping state tuples to probabilities.
         g (float, optional): HFM model parameter. Defaults to np.log(2). The best permutation should be independent from g.
         return_gauged_states_dict (bool, optional): If True, returns the best permutation and state dict.
 
@@ -259,7 +301,7 @@ def compute_perm_minimizing_hfm_kld_brute_force(
     """
 
 
-    state_len = len(list(emp_states_dict_flipgauged.keys())[0])
+    state_len = len(list(emp_states_dict.keys())[0])
 
     permutations_list = list(permutations(range(state_len)))
     permutations_count = len(permutations_list)
@@ -271,7 +313,7 @@ def compute_perm_minimizing_hfm_kld_brute_force(
     for perm in permutations_list:
         i += 1
 
-        permuted_states_dict = {tuple(k[i] for i in perm): v for k, v in emp_states_dict_flipgauged}
+        permuted_states_dict = {tuple(k[i] for i in perm): v for k, v in emp_states_dict}
 
         current_kl = calc_hfm_kld(permuted_states_dict, g=g)
         if current_kl < best_kl:
@@ -289,7 +331,7 @@ def compute_perm_minimizing_hfm_kld_brute_force(
 
 
 def compute_perm_minimizing_hfm_kld_simul_anneal(
-    emp_states_dict_flipgauged: dict,
+    emp_states_dict: dict,
     g = np.log(2),
     initial_temp = 10.0,
     cooling_rate = 0.95,
@@ -302,7 +344,7 @@ def compute_perm_minimizing_hfm_kld_simul_anneal(
     the KL divergence between the empirical state distribution and the HFM model.
 
     Args:
-        emp_states_dict_flipgauged (dict): Dictionary mapping state tuples to probabilities, with bits already gauge flipped.
+        emp_states_dict (dict): Dictionary mapping state tuples to probabilities, with bits already gauge flipped.
         g (float, optional): HFM model parameter. Defaults to np.log(2). The best permutation should be independent from g.
         initial_temp (float, optional): Initial temperature for simulated annealing. Defaults to 10.0.
         cooling_rate (float, optional): Cooling rate for temperature decay. Defaults to 0.95.
@@ -313,10 +355,10 @@ def compute_perm_minimizing_hfm_kld_simul_anneal(
         list: The permutation of state columns that yields the lowest KL divergence found.
     """
 
-    state_len = len(list(emp_states_dict_flipgauged.keys())[0])
+    state_len = len(list(emp_states_dict.keys())[0])
 
     current_perm = list(range(state_len))                   # Identity permutation
-    current_states_dict = emp_states_dict_flipgauged
+    current_states_dict = emp_states_dict
     current_kl = calc_hfm_kld(current_states_dict, g=g)
 
     best_perm = current_perm                                # No need to .copy() because the variable is not modified
@@ -333,7 +375,7 @@ def compute_perm_minimizing_hfm_kld_simul_anneal(
             current_perm[swap_indices[1]], current_perm[swap_indices[0]]
         )   
 
-        permuted_states_dict = {tuple(k[i] for i in candidate_perm): v for k, v in emp_states_dict_flipgauged.items()}
+        permuted_states_dict = {tuple(k[i] for i in candidate_perm): v for k, v in emp_states_dict.items()}
         candidate_kl = calc_hfm_kld(permuted_states_dict, g=g)
 
         delta_kl = candidate_kl - current_kl

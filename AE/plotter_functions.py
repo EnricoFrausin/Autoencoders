@@ -307,6 +307,6 @@ def datasets_dicts_comparison(KLs_dict, save_dir = None):                       
     plt.legend()
     plt.grid(True)
 
-    save_dir(save_dir, "comparison.png")
+    save_fig(save_dir, "comparison.png")
     
     plt.show()

@@ -200,6 +200,7 @@ def train_single_neuron(
         val_loader,
         writer,
         lr = 1e-3,
+        mask_weights = True,
         scheduler = None,
         freeze_prev_neurons_train = True,
         optimizer_func = torch.optim.Adam, 
@@ -215,21 +216,21 @@ def train_single_neuron(
 
     # ----------------------------- Mask parameters and register hook -----------------------------------
 
-    with torch.no_grad():
-        model.bottleneck_in[0].weight.copy_(
-            mask_bottleneck_in_weight(model.bottleneck_in[0].weight, neuron_to_train)
-
+    if mask_weights:
+        with torch.no_grad():
+            model.bottleneck_in[0].weight.copy_(
+                mask_bottleneck_in_weight(model.bottleneck_in[0].weight, neuron_to_train)
+                )
+            model.bottleneck_in[0].bias.copy_(
+                mask_bottleneck_in_bias(model.bottleneck_in[0].bias, neuron_to_train)
             )
-        model.bottleneck_in[0].bias.copy_(
-            mask_bottleneck_in_bias(model.bottleneck_in[0].bias, neuron_to_train)
-        )
-        model.bottleneck_out[0].weight.copy_(
-            mask_bottleneck_out_weight(model.bottleneck_out[0].weight, neuron_to_train)
+            model.bottleneck_out[0].weight.copy_(
+                mask_bottleneck_out_weight(model.bottleneck_out[0].weight, neuron_to_train)
 
+                )
+            model.bottleneck_out[0].bias.copy_(
+                mask_bottleneck_out_bias(model.bottleneck_out[0].bias, neuron_to_train)
             )
-        model.bottleneck_out[0].bias.copy_(
-            mask_bottleneck_out_bias(model.bottleneck_out[0].bias, neuron_to_train)
-        )
 
 
     handle_weight_in = model.bottleneck_in[0].weight.register_hook(lambda grad: mask_bottleneck_in_weight_grad(grad, neuron_to_train, freeze_prev_neurons_train))
@@ -328,6 +329,7 @@ def train_ProgressiveAE(
         val_loader,
         writer,
         lr = 1e-3,
+        mask_weights = True,
         scheduler = None,
         freeze_prev_neurons_train = True,
         optimizer_func = torch.optim.Adam,
@@ -347,6 +349,7 @@ def train_ProgressiveAE(
             val_loader = val_loader,
             writer = writer,
             lr = lr,
+            mask_weights = mask_weights,
             scheduler = scheduler,
             freeze_prev_neurons_train = freeze_prev_neurons_train,
             optimizer_func = optimizer_func,
