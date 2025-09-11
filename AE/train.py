@@ -331,7 +331,7 @@ def train_ProgressiveAE(
         lr = 1e-3,
         mask_weights = True,
         scheduler = None,
-        freeze_prev_neurons_train = True,
+        freeze_prev_neurons_train = False,
         optimizer_func = torch.optim.Adam,
         save_tensorboard_parameters = False,
         save_tensorboard_bottleneck_parameters = False,

@@ -269,7 +269,11 @@ def visualize_bottleneck_neurons(model, device, img_shape=(28, 28), save_dir = N
 
 
 
-def plot_KLs_vs_hidden_layers(KLs, gs, dataset_name, save_dir = None):                                  # EXPORTED TO DEPTH_ANALYSIS
+def plot_KLs_vs_hidden_layers(
+        KLs,
+        gs,
+        dataset_name,
+        save_dir = None):                                  # EXPORTED TO DEPTH_ANALYSIS
     """
     Plots KLs vs number of hidden layers, with gs indicated by a colormap.
     Assumes KLs and gs are lists of length 4 (for 1 to 4 hidden layers).
@@ -310,3 +314,48 @@ def datasets_dicts_comparison(KLs_dict, save_dir = None):                       
     save_fig(save_dir, "comparison.png")
     
     plt.show()
+
+
+
+
+def analyze_binary_frequencies(frequency_dict, top_k=10):
+    """
+    Analyze and display the most frequent binary states.
+    
+    Args:
+        frequency_dict: Dictionary from get_binary_latent_frequencies
+        top_k: Number of top states to display
+    """
+    import matplotlib.pyplot as plt
+    
+    # Sort by frequency (descending)
+    sorted_states = sorted(frequency_dict.items(), key=lambda x: x[1], reverse=True)
+    
+    print(f"\nTop {top_k} most frequent binary states:")
+    print("-" * 50)
+    for i, (state, count) in enumerate(sorted_states[:top_k]):
+        percentage = (count / sum(frequency_dict.values())) * 100
+        state_str = ''.join(map(str, state))
+       # print(f"{i+1:2d}. {state_str} -> {count:5d} samples ({percentage:5.2f}%)")
+    
+    # Plot frequency distribution
+    frequencies = [count for _, count in sorted_states]
+    plt.figure(figsize=(12, 5))
+    
+    plt.subplot(1, 2, 1)
+    plt.bar(range(len(frequencies)), frequencies)
+    plt.xlabel('Binary State (sorted by frequency)')
+    plt.ylabel('Frequency')
+    plt.title('Distribution of Binary States')
+    plt.yscale('log')
+    
+    plt.subplot(1, 2, 2)
+    plt.bar(range(min(top_k, len(frequencies))), frequencies[:top_k])
+    plt.xlabel('Top Binary States')
+    plt.ylabel('Frequency')
+    plt.title(f'Top {top_k} Most Frequent States')
+    
+    plt.tight_layout()
+    plt.show()
+    
+    return sorted_states
