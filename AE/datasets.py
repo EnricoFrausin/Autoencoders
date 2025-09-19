@@ -230,3 +230,62 @@ class MNISTDigit2Dataset(Dataset):
     
     def __getitem__(self, idx):
         return self.augmented_data[idx], self.augmented_targets[idx]
+
+
+
+def MNIST_digit2_translated_dataset(train=True, download=True, target_size=60000):
+    """
+    Returns a dataset of only digit '2' from MNIST, augmented to target_size using only translations.
+    """
+    import torch
+    from torchvision import datasets, transforms
+
+    # Load original MNIST dataset
+    transform = transforms.Compose([transforms.ToTensor()])
+    mnist = datasets.MNIST(root='/Users/enricofrausin/Programmazione/PythonProjects/Fisica/data', train=train, download=download, transform=transform)
+
+    # Filter only digit '2' samples
+    digit_2_data = []
+    digit_2_targets = []
+    for image, label in mnist:
+        if label == 2:
+            digit_2_data.append(image)
+            digit_2_targets.append(label)
+    original_data = torch.stack(digit_2_data)
+    original_targets = torch.tensor(digit_2_targets)
+    print(f"Found {len(original_data)} original samples of digit '2'")
+
+    # Define translation transformations: right, left, down, up, and original
+    translations = [
+        lambda x: x,  # Original
+        lambda x: torch.roll(x, shifts=2, dims=-1),  # Shift right
+        lambda x: torch.roll(x, shifts=-2, dims=-1),  # Shift left
+        lambda x: torch.roll(x, shifts=2, dims=-2),  # Shift down
+        lambda x: torch.roll(x, shifts=-2, dims=-2),  # Shift up
+    ]
+
+    # Calculate how many times we need to replicate the data
+    num_original = len(original_data)
+    replications_needed = (target_size + num_original - 1) // num_original
+
+    augmented_data = []
+    augmented_targets = []
+    for rep in range(replications_needed):
+        for i, (image, target) in enumerate(zip(original_data, original_targets)):
+            if len(augmented_data) >= target_size:
+                break
+            transform_idx = (rep * num_original + i) % len(translations)
+            transformed_image = translations[transform_idx](image)
+            augmented_data.append(transformed_image)
+            augmented_targets.append(target)
+        if len(augmented_data) >= target_size:
+            break
+
+    # Trim to exact target size
+    augmented_data = augmented_data[:target_size]
+    augmented_targets = augmented_targets[:target_size]
+    print(f"Generated {len(augmented_data)} augmented samples (translations only)")
+
+    # Return as a TensorDataset
+    from torch.utils.data import TensorDataset
+    return TensorDataset(torch.stack(augmented_data), torch.tensor(augmented_targets))

@@ -16,6 +16,8 @@ def train(
     save_tensorboard_parameters=False,
     starting_epoch = 0
 ):
+    
+
     global_batch_idx = 0
 
     for epoch in range(epochs):
@@ -41,7 +43,7 @@ def train(
 
         print(
             "Epoch: {}/{}, Average loss: {:.4f}".format(
-                epoch, epochs, train_loss / len(train_loader.dataset)
+                epoch+1, epochs, train_loss / len(train_loader.dataset)
             )
         )
 

@@ -15,6 +15,8 @@ class AE_0(nn.Module):
         output_activation_decoder=None,
         BatchNorm=False,
         LayerNorm=False,
+        he_init=False,
+        set_bias=None
     ):
         super().__init__()
 
@@ -68,6 +70,16 @@ class AE_0(nn.Module):
             self.device
         )  # TOCHECK TO DEVICE
 
+
+        if set_bias is not None:
+            self.set_bias(set_bias)
+
+        if he_init:
+            self.he_initialization
+
+
+
+
     def encode(self, data):
         if data.dim() > 2:
             data_flat = data.view(-1, self.input_dim)  # data_flat has size (batch_size(64), 28, 28)
@@ -76,8 +88,10 @@ class AE_0(nn.Module):
         return self.encoder(data_flat)
 
 
+
     def decode(self, data):
         return self.decoder(data)
+
 
 
     def forward(self, data): # batch has size (batch_size(64), 28, 28)
@@ -88,6 +102,25 @@ class AE_0(nn.Module):
             decoded = decoded.view(original_shape)
         return decoded
 
+
+
+    def set_bias(self, value):
+        with torch.no_grad():
+            for i in range((len(self.encoder))):
+                if isinstance(self.encoder[i], nn.Linear):
+                    nn.init.constant_(self.encoder[i].bias, value)
+            for i in range((len(self.decoder))):
+                if isinstance(self.decoder[i], nn.Linear):
+                    nn.init.constant_(self.decoder[i].bias, value)
+
+    def he_initialization(self):
+        with torch.no_grad():
+            for i in range((len(self.encoder))):
+                if isinstance(self.encoder[i], nn.Linear):
+                    nn.init.kaiming_normal_(self.encoder[i].weight)
+            for i in range((len(self.decoder))):
+                if isinstance(self.decoder[i], nn.Linear):
+                    nn.init.kaiming_normal_(self.decoder[i].weight)
 
 
 
@@ -128,6 +161,7 @@ class ProgressiveAE(nn.Module):
                 activation_fn()
                 )
         self.amputated_encoder = nn.Sequential(*encoder_layers).to(device)
+
 
 
         # --------------Decoder----------------
