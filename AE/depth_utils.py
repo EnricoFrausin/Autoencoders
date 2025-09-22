@@ -110,7 +110,7 @@ def optimize_binarize_threshold_through_energy(klds_sign_changes_lst, gs_distanc
 
     for i, binarize_threshold in enumerate(binarize_threshold_range):
         energy = (
-            1 * klds_sign_changes_lst[i] 
+            3 * klds_sign_changes_lst[i] 
             + 1 * gs_distances_lst[i]
         )
         if energy < best_energy:
