@@ -233,6 +233,38 @@ class MNISTDigit2Dataset(Dataset):
 
 
 
+
+class MNISTDigit2OnlyDataset(Dataset):
+    """
+    Dataset che contiene solo le immagini della cifra '2' dal MNIST, senza augmentazioni.
+    """
+    def __init__(self, train=True, download=True):
+        transform = transforms.Compose([transforms.ToTensor()])
+        mnist = datasets.MNIST(
+            root='/Users/enricofrausin/Programmazione/PythonProjects/Fisica/data',
+            train=train,
+            download=download,
+            transform=transform
+        )
+        digit_2_data = []
+        digit_2_targets = []
+        for image, label in mnist:
+            if label == 2:
+                digit_2_data.append(image)
+                digit_2_targets.append(label)
+        self.data = torch.stack(digit_2_data)
+        self.targets = torch.tensor(digit_2_targets)
+        print(f"Found {len(self.data)} samples of digit '2'")
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        return self.data[idx], self.targets[idx]
+
+
+
+
 def MNIST_digit2_translated_dataset(train=True, download=True, target_size=60000):
     """
     Returns a dataset of only digit '2' from MNIST, augmented to target_size using only translations.
