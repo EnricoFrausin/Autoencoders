@@ -321,3 +321,45 @@ def MNIST_digit2_translated_dataset(train=True, download=True, target_size=60000
     # Return as a TensorDataset
     from torch.utils.data import TensorDataset
     return TensorDataset(torch.stack(augmented_data), torch.tensor(augmented_targets))
+
+
+
+
+
+
+class FEMNISTDataset(Dataset):
+    """
+    Dataset that merges EMNIST (balanced split) and FashionMNIST.
+    Each sample is a tuple: (image, label)
+    """
+    def __init__(self, train=True, download=True, transform=None):
+        if transform is None:
+            transform = transforms.ToTensor()
+
+        emnist = datasets.EMNIST(
+            root='/Users/enricofrausin/Programmazione/PythonProjects/Fisica/data',
+            split='balanced',
+            train=train,
+            download=download,
+            transform=transform
+        )
+
+        fashionmnist = datasets.FashionMNIST(
+            root='/Users/enricofrausin/Programmazione/PythonProjects/Fisica/data',
+            train=train,
+            download=download,
+            transform=transform
+        )
+        self.emnist_data = emnist
+        self.fashionmnist_data = fashionmnist
+        self.length = len(emnist) + len(fashionmnist)
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, idx):
+        if idx < len(self.emnist_data):
+            image, label = self.emnist_data[idx]
+        else:
+            image, label = self.fashionmnist_data[idx - len(self.emnist_data)]
+        return image, label
